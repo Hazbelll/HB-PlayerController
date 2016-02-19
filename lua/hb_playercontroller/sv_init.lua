@@ -4,7 +4,7 @@ hb_playercontroller.conVarsCommands = {
 	["logging"] = CreateConVar("hb_playercontroller_log", "1", FCVAR_SERVER_CAN_EXECUTE, "Specifies whether to log Player Controller usage [0: Disabled | 1: Enabled]"),
 	["loggingcl"] = CreateConVar("hb_playercontroller_log_cl", "2", {FCVAR_SERVER_CAN_EXECUTE, FCVAR_NOTIFY}, "Specifies whether to log Player Controller usage to Clients [0: Disabled | 1: Everyone | 2: Admins only | 3: Superadmins only]"),
 	["immunity"] = CreateConVar("hb_playercontroller_immunity", "1", {FCVAR_SERVER_CAN_EXECUTE, FCVAR_NOTIFY}, "Specifies whether to use immunity, where lower usergroups cannot target higher usergroups [0: Disabled | 1: Enabled]"),
-	["access"] = CreateConVar("hb_playercontroller_access", "1", {FCVAR_SERVER_CAN_EXECUTE, FCVAR_NOTIFY}, "Specifies the minimum required access rights to use the Player Controller [0: Everyone | 1: Admins only | 2: Superadmins only]")
+	["access"] = CreateConVar("hb_playercontroller_access", "1", {FCVAR_SERVER_CAN_EXECUTE, FCVAR_NOTIFY}, "Specifies the minimum required access rights to use the Player Controller [0: Everyone | 1: Admins only | 2: Superadmins only | 3: Custom-defined]")
 }
 
 SetGlobalBool(hb_playercontroller.conVarsCommands["immunity"]:GetName(), hb_playercontroller.conVarsCommands["immunity"]:GetBool())
@@ -405,7 +405,14 @@ function hb_playercontroller.startControl(ctrlr, ctrld)
 		return
 	end
 	if (access:GetInt() ~= 0) then
-		if (access:GetInt() == 2) and not (ctrlr:IsSuperAdmin()) then
+		if (access:GetInt() == 3) then
+			local acs, why = hook.Run("hb_playercontroller_canAccess", ctrlr, ctrld)
+			
+			if (acs ~= nil) and not (tobool(acs)) then
+				failnotify(ctrlr, tostring(why or "No access"))
+				return
+			end
+		elseif (access:GetInt() == 2) and not (ctrlr:IsSuperAdmin()) then
 			failnotify(ctrlr, "No access")
 			return
 		elseif (access:GetInt() == 1) and not ((ctrlr:IsAdmin()) or (ctrlr:IsSuperAdmin())) then

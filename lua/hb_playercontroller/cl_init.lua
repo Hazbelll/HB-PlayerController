@@ -17,11 +17,15 @@ net.Receive("hb_playercontrollernetwork", function(len)
 			ply.hb_playercontroller["plyView"] = 120
 			hb_playercontroller.controllerHUD()
 			timer.Create("hb_playercontrollerHUDRefresh", 0.5, 0, function()
-				if (hb_playercontroller) and (IsValid(ply.hb_playercontroller["plyCTRLENT"])) then
-					hb_playercontroller.controllerHUDPlyInfoRefresh()
-					hb_playercontroller.controllerHUDPlyWeaponRefresh()
-					if (gmod.GetGamemode().IsSandboxDerived) then
-						hb_playercontroller.controllerHUDPlySpawnsRefresh()
+				if (IsValid(ply)) and (ply.hb_playercontroller) and (IsValid(ply.hb_playercontroller["plyCTRLENT"])) then
+					if (tobool(ply.hb_playercontroller.controllerHUDPlyInfoRefresh)) then
+						ply.hb_playercontroller.controllerHUDPlyInfoRefresh()
+					end
+					if (tobool(ply.hb_playercontroller.controllerHUDPlyWeaponRefresh)) then
+						ply.hb_playercontroller.controllerHUDPlyWeaponRefresh()
+					end
+					if (gmod.GetGamemode().IsSandboxDerived) and (tobool(ply.hb_playercontroller.controllerHUDPlySpawnsRefresh)) then
+						ply.hb_playercontroller.controllerHUDPlySpawnsRefresh()
 					end
 				end
 			end)
@@ -45,16 +49,18 @@ net.Receive("hb_playercontrollernetwork", function(len)
 		hook.Add("PlayerBindPress", "hb_playercontrollerOverrideBindPress", hb_playercontroller.overrideBindPress)
 		notification.AddProgress("hb_playercontrollerCTRL", msg..ply.hb_playercontroller["plyCTRLENT"]:Nick())
 		timer.Create("hb_playercontrollerNotice", 5, 0, function() notification.Kill("hb_playercontrollerCTRL") end)
-	elseif (tbl.arg == 3) and (ply.hb_playercontroller) then
-		ply.hb_playercontroller["entTYPES"] = tbl.spawns
-		hb_playercontroller.controllerHUDPlySpawnsRefresh()
-	elseif (tbl.arg == 4) and (ply.hb_playercontroller) then
-		ply:ConCommand(tbl.command)
-		timer.Simple(0.1, function() if (IsValid(ply)) and (ply.hb_playercontroller) then hb_playercontroller.networkSendCL(4) end end)
 	elseif (tbl.arg == 5) then
 		MsgC(Color(255, 64, 64), "[PLAYER CONTROLLER] ", Color(198, 198, 198), tbl.log.."\n")
-	elseif (tbl.arg == 6) and (ply.hb_playercontroller) then
-		hb_playercontroller.endControlCL()
+	elseif (ply.hb_playercontroller) then
+		if (tbl.arg == 3) and (tobool(ply.hb_playercontroller.controllerHUDPlySpawnsRefresh)) then
+			ply.hb_playercontroller["entTYPES"] = tbl.spawns
+			ply.hb_playercontroller.controllerHUDPlySpawnsRefresh()
+		elseif (tbl.arg == 4) then
+			ply:ConCommand(tbl.command)
+			timer.Simple(0.1, function() if (IsValid(ply)) and (ply.hb_playercontroller) then hb_playercontroller.networkSendCL(4) end end)
+		elseif (tbl.arg == 6) then
+			hb_playercontroller.endControlCL()
+		end
 	end
 end)
 
@@ -333,8 +339,8 @@ function hb_playercontroller.controllerHUD()
 	ply.hb_playercontroller.plyMenu.menuInfo:AddColumn("Info")
 	ply.hb_playercontroller.plyMenu.menuInfoValue = ply.hb_playercontroller.plyMenu.menuInfo:AddColumn("Data")
 	ply.hb_playercontroller.plyMenu.menuInfoValue:SetWidth(220)
-	function hb_playercontroller.controllerHUDPlyInfoRefresh()
-		if not ((ply.hb_playercontroller.plyMenu.menuInfo) or (ply.hb_playercontroller) or (ply.hb_playercontroller["plyCTRLR"])) then return end
+	function ply.hb_playercontroller.controllerHUDPlyInfoRefresh()
+		if not ((IsValid(ply)) or (ply.hb_playercontroller) or (ply.hb_playercontroller["plyCTRLR"]) or (ply.hb_playercontroller.plyMenu.menuInfo)) then return end
 		
 		ply.hb_playercontroller.plyMenu.menuInfo:Clear()
 		ply.hb_playercontroller.plyMenu.menuInfo:AddLine("Name", ctrld:Nick())
@@ -352,8 +358,8 @@ function hb_playercontroller.controllerHUD()
 	ply.hb_playercontroller.plyMenu.menuWeapon = vgui.Create("DComboBox", ply.hb_playercontroller.plyMenu.menuHide)
 	ply.hb_playercontroller.plyMenu.menuWeapon:SetPos(0, 152)
 	ply.hb_playercontroller.plyMenu.menuWeapon:SetSize(ply.hb_playercontroller.plyMenu:GetWide() - 5, 20)
-	function hb_playercontroller.controllerHUDPlyWeaponRefresh()
-		if not ((ply.hb_playercontroller.plyMenu.menuWeapon) or (ply.hb_playercontroller) or (ply.hb_playercontroller["plyCTRLR"])) then return end
+	function ply.hb_playercontroller.controllerHUDPlyWeaponRefresh()
+		if not ((IsValid(ply)) or (ply.hb_playercontroller) or (ply.hb_playercontroller["plyCTRLR"]) or (ply.hb_playercontroller.plyMenu.menuWeapon)) then return end
 		
 		if not (ply.hb_playercontroller.plyMenu.menuWeapon:IsMenuOpen()) then
 			ply.hb_playercontroller.plyMenu.menuWeapon:Clear()
@@ -385,8 +391,8 @@ function hb_playercontroller.controllerHUD()
 		ply.hb_playercontroller.plyMenu.menuSpawnsType = ply.hb_playercontroller.plyMenu.menuSpawns:AddColumn("Type")
 		ply.hb_playercontroller.plyMenu.menuSpawnsType:SetSize(ply.hb_playercontroller.plyMenu:GetWide() - 80, 85)
 		ply.hb_playercontroller.plyMenu.menuSpawns:AddColumn("Count")
-		function hb_playercontroller.controllerHUDPlySpawnsRefresh()
-			if not ((ply.hb_playercontroller.plyMenu.menuSpawns) or (ply.hb_playercontroller) or (ply.hb_playercontroller["plyCTRLR"])) then return end
+		function ply.hb_playercontroller.controllerHUDPlySpawnsRefresh()
+			if not ((IsValid(ply)) or (ply.hb_playercontroller) or (ply.hb_playercontroller["plyCTRLR"]) or (ply.hb_playercontroller.plyMenu.menuSpawns)) then return end
 			
 			if (ply.hb_playercontroller["entTYPES"]) then
 				ply.hb_playercontroller.plyMenu.menuSpawns:Clear()

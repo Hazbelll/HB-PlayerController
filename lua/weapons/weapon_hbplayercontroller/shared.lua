@@ -141,7 +141,13 @@ if (CLIENT) then
 				return statinuse
 			end
 			if (access ~= 0) then
-				if (access == 2) and not (ply:IsSuperAdmin()) then
+				if (access == 3) then
+					local acs = hook.Run("hb_playercontroller_canAccess", ply, entity)
+					
+					if (acs ~= nil) and not (tobool(acs)) then
+						return statinuse
+					end
+				elseif (access == 2) and not (ply:IsSuperAdmin()) then
 					return statinuse
 				elseif (access == 1) and not ((ply:IsAdmin()) or (ply:IsSuperAdmin())) then
 					return statinuse
