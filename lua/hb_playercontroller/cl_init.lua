@@ -181,7 +181,7 @@ function hb_playercontroller.overrideBindPress(ply, str, psd)
 		
 		if (str == input.LookupKeyBinding(KEY_F6)) or (str == input.LookupKeyBinding(KEY_F7)) or (str == input.LookupKeyBinding(KEY_F8)) then
 			return true
-		elseif (strl == "undo") and (psd) then
+		elseif ((strl == "undo") or (strl == "gmod_undo")) and (psd) then
 			hb_playercontroller.networkSendCL(3)
 			return true
 		elseif (strl == "impulse 100") and (psd) then
@@ -194,6 +194,7 @@ function hb_playercontroller.overrideBindPress(ply, str, psd)
 			else
 				ply.hb_playercontroller["plyView"] = math.Clamp(ply.hb_playercontroller["plyView"] - 5, 100, 300)
 			end
+			return true
 		elseif ((strl == "invnext") or (strl == "invprev")) and (psd) and not (ply:KeyDown(IN_ATTACK)) then
 			ctrld = ply.hb_playercontroller["plyCTRLENT"]
 			if not (IsValid(ctrld)) then return end
@@ -214,6 +215,7 @@ function hb_playercontroller.overrideBindPress(ply, str, psd)
 			end
 			
 			hb_playercontroller.networkSendCL(2, weps[actv]:GetClass())
+			return true
 		end
 	elseif (ply.hb_playercontroller["plyCTRLD"]) then
 		return true

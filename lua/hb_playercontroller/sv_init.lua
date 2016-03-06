@@ -64,35 +64,25 @@ net.Receive("hb_playercontrollernetwork", function(len, ply)
 			if not (IsValid(rctrld)) then return end
 			local all = net.ReadBool()
 			local typ = "Everything"
-			local msg = false
 			
 			if (all) then
 				local tbl = undo.GetTable()[rctrld:UniqueID()]
 				
-				for i = #tbl, 1, -1 do
-					if (IsValid(tbl[i].Entities[1])) then
-						msg = true
-						cleanup.CC_Cleanup(rctrld, nil, {})
-						hb_playercontroller.logSubmit(ply:Nick().." ("..ply:SteamID()..") cleaned up everything owned by "..rctrld:Nick().." ("..rctrld:SteamID()..")")
-						break
-					end
-				end
+				cleanup.CC_Cleanup(rctrld, nil, {})
+				hb_playercontroller.logSubmit(ply:Nick().." ("..ply:SteamID()..") cleaned up everything owned by "..rctrld:Nick().." ("..rctrld:SteamID()..")")
 			else
 				typ = net.ReadString()
 				
-				msg = true
 				cleanup.CC_Cleanup(rctrld, nil, {string.lower(typ)})
 				hb_playercontroller.logSubmit(ply:Nick().." ("..ply:SteamID()..") cleaned up a type owned by "..rctrld:Nick().." ("..rctrld:SteamID()..") - Type: "..typ)
 			end
 			
-			if (msg) then
-				hb_playercontroller.networkSend(ply, {
-					arg = 1,
-					message = "Cleaned up Type: "..typ,
-					type = NOTIFY_CLEANUP,
-					sound = "buttons/button15.wav"
-				})
-			end
+			hb_playercontroller.networkSend(ply, {
+				arg = 1,
+				message = "Cleaned up Type: "..typ,
+				type = NOTIFY_CLEANUP,
+				sound = "buttons/button15.wav"
+			})
 		elseif (argc == 2) then
 			local rctrld = ctrlr["plyControlled"]
 			if not (IsValid(rctrld)) then return end
@@ -113,9 +103,12 @@ net.Receive("hb_playercontrollernetwork", function(len, ply)
 						type = NOTIFY_UNDO,
 						sound = "buttons/button15.wav"
 					})
-					undo.Do_Undo(tbl[i])
 					hb_playercontroller.logSubmit(ply:Nick().." ("..ply:SteamID()..") did an undo on "..rctrld:Nick().." ("..rctrld:SteamID()..") - Undone: "..tbl[i].Name)
+					undo.Do_Undo(tbl[i])
+					tbl[i] = nil
 					break
+				else
+					tbl[i] = nil
 				end
 			end
 		elseif (argc == 5) then
@@ -235,7 +228,7 @@ function hb_playercontroller.endControl(ply, arg)
 				arg = 1,
 				message = "No longer Controlling: "..ctrldNick..rsn,
 				type = NOTIFY_HINT,
-				sound = "buttons/button16.wav"
+				sound = "common/null.wav"
 			})
 		end
 		
@@ -277,7 +270,7 @@ function hb_playercontroller.endControl(ply, arg)
 				arg = 1,
 				message = "No longer Controlled by: "..ctrlrNick..rsn,
 				type = NOTIFY_HINT,
-				sound = "buttons/button16.wav"
+				sound = "common/null.wav"
 			})
 		end
 	end)
@@ -749,26 +742,74 @@ function hb_playercontroller.physgunUnfreezeNotify(wep, ply)
 	end
 end
 
---Spawn the passed Entity as the Controlled Player.
-function hb_playercontroller.overrideSpawnInit(ply, ent, arg)
+--Spawn the passed Entity as the Controlled Player or notify Controller on failure.
+function hb_playercontroller.overrideSpawnInit(ply, ent, arg, ext1)
 	local ctrld = ply.hb_playercontrollerCTRLR["plyControlled"]
 	if not (IsValid(ctrld)) then return end
+	local err, typ = false, ""
 	
 	ctrld.hb_playercontrollerCTRLD["plySpawnInit"] = true
 	if (arg == 1) then
-		CCSpawn(ctrld, nil, {ent})
+		if (util.IsValidProp(ent)) then
+			if (hook.Run("PlayerSpawnProp", ctrld, ent)) then
+				CCSpawn(ctrld, nil, {ent})
+			else
+				err, typ = true, "Prop"
+			end
+		elseif (util.IsValidRagdoll(ent)) then
+			if (hook.Run("PlayerSpawnRagdoll", ctrld, ent)) then
+				CCSpawn(ctrld, nil, {ent})
+			else
+				err, typ = true, "Ragdoll"
+			end
+		else
+			if (hook.Run("PlayerSpawnEffect", ctrld, ent)) then
+				CCSpawn(ctrld, nil, {ent})
+			else
+				err, typ = true, "Effect"
+			end
+		end
 	elseif (arg == 2) then
-		Spawn_NPC(ctrld, ent)
+		if (hook.Run("PlayerSpawnNPC", ctrld, ent, ext1)) then
+			Spawn_NPC(ctrld, ent)
+		else
+			err, typ = true, "NPC"
+		end
 	elseif (arg == 3) then
-		Spawn_SENT(ctrld, ent)
+		if (hook.Run("PlayerSpawnSENT", ctrld, ent)) then
+			Spawn_SENT(ctrld, ent)
+		else
+			err, typ = true, "SENT"
+		end
 	elseif (arg == 4) then
-		Spawn_Vehicle(ctrld, ent)
+		if (hook.Run("PlayerSpawnVehicle", ctrld, ext1, ent, ext2)) then
+			Spawn_Vehicle(ctrld, ent)
+		else
+			err, typ = true, "Vehicle"
+		end
 	elseif (arg == 5) then
-		Spawn_Weapon(ctrld, ent)
+		if (hook.Run("PlayerSpawnSWEP", ctrld, ent, ext1)) then
+			Spawn_Weapon(ctrld, ent)
+		else
+			err, typ = true, "Weapon"
+		end
 	elseif (arg == 6) then
-		CCGiveSWEP(ctrld, nil, {ent})
+		if (hook.Run("PlayerGiveSWEP", ctrld, ent, ext1)) then
+			CCGiveSWEP(ctrld, nil, {ent})
+		else
+			err, typ = true, "Weapon"
+		end
 	end
 	ctrld.hb_playercontrollerCTRLD["plySpawnInit"] = nil
+	
+	if (err) then
+		hb_playercontroller.networkSend(ply, {
+			arg = 1,
+			message = "Failed to Spawn Type: "..typ,
+			type = NOTIFY_ERROR,
+			sound = "buttons/button10.wav"
+		})
+	end
 end
 
 --Override Controlled Player's Object Spawn access with the Controller's.
@@ -817,9 +858,9 @@ function hb_playercontroller.spawnNotify(ply, ent, cor)
 end
 
 --Override Controlled Player's NPC Spawn access with the Controller's.
-function hb_playercontroller.overrideSpawnNPC(ply, npc)
+function hb_playercontroller.overrideSpawnNPC(ply, npc, wep)
 	if (ply.hb_playercontrollerCTRLR) then
-		hb_playercontroller.overrideSpawnInit(ply, npc, 2)
+		hb_playercontroller.overrideSpawnInit(ply, npc, 2, wep)
 		return false
 	elseif (ply.hb_playercontrollerCTRLD) and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
 		return false
@@ -837,9 +878,9 @@ function hb_playercontroller.overrideSpawnSENT(ply, ent)
 end
 
 --Override Controlled Player's Vehicle Spawn access with the Controller's.
-function hb_playercontroller.overrideSpawnVehicle(ply, mdl, ent)
+function hb_playercontroller.overrideSpawnVehicle(ply, mdl, ent, tbl)
 	if (ply.hb_playercontrollerCTRLR) then
-		hb_playercontroller.overrideSpawnInit(ply, ent, 4)
+		hb_playercontroller.overrideSpawnInit(ply, ent, 4, mdl, tbl)
 		return false
 	elseif (ply.hb_playercontrollerCTRLD) and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
 		return false
@@ -847,9 +888,9 @@ function hb_playercontroller.overrideSpawnVehicle(ply, mdl, ent)
 end
 
 --Override Controlled Player's SWEP Spawn access with the Controller's.
-function hb_playercontroller.overrideSpawnSWEP(ply, wep)
+function hb_playercontroller.overrideSpawnSWEP(ply, wep, tbl)
 	if (ply.hb_playercontrollerCTRLR) then
-		hb_playercontroller.overrideSpawnInit(ply, wep, 5)
+		hb_playercontroller.overrideSpawnInit(ply, wep, 5, tbl)
 		return false
 	elseif (ply.hb_playercontrollerCTRLD) and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
 		return false
@@ -857,9 +898,9 @@ function hb_playercontroller.overrideSpawnSWEP(ply, wep)
 end
 
 --Override Controlled Player's SWEP Give access with the Controller's.
-function hb_playercontroller.overrideGiveSWEP(ply, wep)
+function hb_playercontroller.overrideGiveSWEP(ply, wep, tbl)
 	if (ply.hb_playercontrollerCTRLR) then
-		hb_playercontroller.overrideSpawnInit(ply, wep, 6)
+		hb_playercontroller.overrideSpawnInit(ply, wep, 6, tbl)
 		return false
 	elseif (ply.hb_playercontrollerCTRLD) and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
 		return false
