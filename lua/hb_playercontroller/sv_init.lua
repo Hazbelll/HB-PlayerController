@@ -743,7 +743,7 @@ function hb_playercontroller.physgunUnfreezeNotify(wep, ply)
 end
 
 --Spawn the passed Entity as the Controlled Player or notify Controller on failure.
-function hb_playercontroller.overrideSpawnInit(ply, ent, arg, ext1)
+function hb_playercontroller.overrideSpawnInit(ply, ent, arg, ext1, ext2)
 	local ctrld = ply.hb_playercontrollerCTRLR["plyControlled"]
 	if not (IsValid(ctrld)) then return end
 	local err, typ = false, ""
