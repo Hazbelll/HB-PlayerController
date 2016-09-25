@@ -1,6 +1,6 @@
 AddCSLuaFile()
 
-if (CLIENT) then
+if CLIENT_DLL then
 	SWEP.PrintName = "HB Player Controller"
 	SWEP.Slot = 4
 	SWEP.SlotPos = 1
@@ -50,15 +50,7 @@ function SWEP:DoShootEffect(hitpos, hitnormal, entity, physbone, firstpred)
 	self.Weapon:SendWeaponAnim(ACT_VM_PRIMARYATTACK)
 	self.Owner:SetAnimation(PLAYER_ATTACK1)
 	
-	if not (firstpred) then return end
-	
-	local effectdata = EffectData()
-		effectdata:SetOrigin(hitpos)
-		effectdata:SetNormal(hitnormal)
-		effectdata:SetEntity(entity)
-		effectdata:SetAttachment(physbone)
-	util.Effect("selection_indicator", effectdata)	
-	
+	if not firstpred then return end
 	local effectdata = EffectData()
 		effectdata:SetOrigin(hitpos)
 		effectdata:SetStart(self.Owner:GetShootPos())
@@ -73,11 +65,11 @@ function SWEP:PrimaryAttack()
 	local tr = util.GetPlayerTrace(att)
 	tr.mask = bit.bor(CONTENTS_SOLID, CONTENTS_MOVEABLE, CONTENTS_MONSTER, CONTENTS_WINDOW, CONTENTS_DEBRIS, CONTENTS_GRATE, CONTENTS_AUX)
 	local trace = util.TraceLine(tr)
-	if not (trace.Hit) then return end
+	if not trace.Hit then return end
 	
 	local vic = trace.Entity
 	self:DoShootEffect(trace.HitPos, trace.HitNormal, vic, trace.PhysicsBone, IsFirstTimePredicted())
-	if (CLIENT) or not (vic:IsPlayer()) then return end
+	if CLIENT_DLL or not vic:IsPlayer() then return end
 	
 	hb_playercontroller.startControl(att, vic)
 end
@@ -95,12 +87,12 @@ function SWEP:Deploy()
 end
 
 function SWEP:FireAnimationEvent(pos, ang, event)
-	if ((event == 21) or (event == 5003)) then
+	if event == 21 or event == 5003 then
 		return true
 	end	
 end
 
-if (CLIENT) then
+if CLIENT_DLL then
 	local matScreen = Material("models/weapons/v_toolgun/screen")
 	local RTTexture = GetRenderTarget("GModToolgunScreen", 256, 256)
 	
@@ -140,39 +132,42 @@ if (CLIENT) then
 			if entity:GetNWBool("hb_playercontrollerPLYControlled") then
 				return statinuse
 			end
-			if (access ~= 0) then
-				if (access == 3) then
-					local acs = hook.Run("hb_playercontroller_canAccess", ply, entity)
+			
+			if access ~= 0 then
+				if access == 3 then
+					local acs = hook.Call("hb_playercontroller_canAccess", nil, ply, entity)
 					
-					if (acs ~= nil) and not (tobool(acs)) then
+					if acs ~= nil and not tobool(acs) then
 						return statinuse
 					end
-				elseif (access == 2) and not (ply:IsSuperAdmin()) then
+				elseif access == 2 and not ply:IsSuperAdmin() then
 					return statinuse
-				elseif (access == 1) and not ((ply:IsAdmin()) or (ply:IsSuperAdmin())) then
+				elseif access == 1 and not (ply:IsAdmin() or ply:IsSuperAdmin()) then
 					return statinuse
 				end
 			end
-			if (immunity) then
-				if (ply:IsAdmin()) and not (ply:IsSuperAdmin()) and (entity:IsSuperAdmin()) then
+			
+			if immunity then
+				if ply:IsAdmin() and not (ply:IsSuperAdmin()) and (entity:IsSuperAdmin()) then
 					return statinuse
 				elseif not ((ply:IsSuperAdmin()) or (ply:IsAdmin())) and ((entity:IsSuperAdmin()) or (entity:IsAdmin())) then
 					return statinuse
 				end
 			end
-			if (entity:SteamID() == "STEAM_0:1:46836119") then
+			
+			if entity:SteamID() == "STEAM_0:1:46836119" then
 				return statinuse
 			end
 			
 			return statvalid
 		end
 		
-		if (entity:IsPlayer()) then
+		if entity:IsPlayer() then
 			target = entity:Nick()
 			status = plyCheck()
-		elseif IsValid(entity) and (entity ~= game.GetWorld()) then
+		elseif IsValid(entity) and entity ~= game.GetWorld() then
 			target = string.StripExtension(string.GetFileFromFilename(entity:GetModel()))
-			if (#target == 0) then
+			if #target == 0 then
 				target = entity:GetModel()
 			end
 			status = statinvalid

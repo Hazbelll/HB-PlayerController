@@ -1,7 +1,7 @@
 util.AddNetworkString("hb_playercontrollernetwork")
 
 hb_playercontroller.conVarsCommands = {
-	["logging"] = CreateConVar("hb_playercontroller_log", "1", FCVAR_SERVER_CAN_EXECUTE, "Specifies whether to log Player Controller usage [0: Disabled | 1: Enabled]"),
+	["logging"] = CreateConVar("hb_playercontroller_log", (game.IsDedicated() and "1" or "0"), FCVAR_SERVER_CAN_EXECUTE, "Specifies whether to log Player Controller usage [0: Disabled | 1: Enabled]"),
 	["loggingcl"] = CreateConVar("hb_playercontroller_log_cl", "2", {FCVAR_SERVER_CAN_EXECUTE, FCVAR_NOTIFY}, "Specifies whether to log Player Controller usage to Clients [0: Disabled | 1: Everyone | 2: Admins only | 3: Superadmins only]"),
 	["immunity"] = CreateConVar("hb_playercontroller_immunity", "1", {FCVAR_SERVER_CAN_EXECUTE, FCVAR_NOTIFY}, "Specifies whether to use immunity, where lower usergroups cannot target higher usergroups [0: Disabled | 1: Enabled]"),
 	["access"] = CreateConVar("hb_playercontroller_access", "1", {FCVAR_SERVER_CAN_EXECUTE, FCVAR_NOTIFY}, "Specifies the minimum required access rights to use the Player Controller [0: Everyone | 1: Admins only | 2: Superadmins only | 3: Custom-defined]")
@@ -17,29 +17,30 @@ cvars.AddChangeCallback(hb_playercontroller.conVarsCommands["access"]:GetName(),
 	SetGlobalInt(nme, math.Round(tonumber(vnw)))
 end)
 
---Networks the passed Arguments to the Clients.
+-- Networks the passed Arguments to the Clients.
 function hb_playercontroller.networkSend(ply, tbl)
 	net.Start("hb_playercontrollernetwork")
 		net.WriteTable(tbl)
 	net.Send(ply)
 end
 
---Manages logging to Server and Clients.
+-- Manages logging to Server and Clients.
 function hb_playercontroller.logSubmit(str, usr)
 	local users = {usr}
 	local loggingcl = hb_playercontroller.conVarsCommands["loggingcl"]
 	
-	if (loggingcl:GetInt() ~= 0) then
-		for k, v in pairs(player.GetAll()) do
-			if (loggingcl:GetInt() == 3) and (v:IsSuperAdmin()) then
+	if loggingcl:GetInt() ~= 0 then
+		for k, v in ipairs(player.GetAll()) do
+			if loggingcl:GetInt() == 3 and v:IsSuperAdmin() then
 				table.insert(users, v)
-			elseif (loggingcl:GetInt() == 2) and ((v:IsAdmin()) or (v:IsSuperAdmin())) then
+			elseif loggingcl:GetInt() == 2 and (v:IsAdmin() or v:IsSuperAdmin()) then
 				table.insert(users, v)
-			elseif (loggingcl:GetInt() == 1) then
+			elseif loggingcl:GetInt() == 1 then
 				table.insert(users, v)
 			end
 		end
-		if (#users > 0) then
+		
+		if #users > 0 then
 			hb_playercontroller.networkSend(users, {
 				arg = 5,
 				log = str
@@ -47,25 +48,25 @@ function hb_playercontroller.logSubmit(str, usr)
 		end
 	end
 	
-	if (hb_playercontroller.conVarsCommands["logging"]:GetBool()) then
+	if hb_playercontroller.conVarsCommands["logging"]:GetBool() then
 		ServerLog("[PLAYER CONTROLLER] "..str.."\n")
 	end
 end
 
---Instructs the Server using data received from the Client.
+-- Instructs the Server using data received from the Client.
 net.Receive("hb_playercontrollernetwork", function(len, ply)
-	if not ((IsValid(ply)) or (ply:IsPlayer())) then return end
+	if not (IsValid(ply) or ply:IsPlayer()) then return end
 	local argc = net.ReadInt(6)
 	local ctrlr = ply.hb_playercontrollerCTRLR
 	
-	if (ctrlr) then
-		if (argc == 1) then
+	if ctrlr then
+		if argc == 1 then
 			local rctrld = ctrlr["plyControlled"]
-			if not (IsValid(rctrld)) then return end
+			if not IsValid(rctrld) then return end
 			local all = net.ReadBool()
 			local typ = "Everything"
 			
-			if (all) then
+			if all then
 				local tbl = undo.GetTable()[rctrld:UniqueID()]
 				
 				cleanup.CC_Cleanup(rctrld, nil, {})
@@ -83,20 +84,20 @@ net.Receive("hb_playercontrollernetwork", function(len, ply)
 				type = NOTIFY_CLEANUP,
 				sound = "buttons/button15.wav"
 			})
-		elseif (argc == 2) then
+		elseif argc == 2 then
 			local rctrld = ctrlr["plyControlled"]
-			if not (IsValid(rctrld)) then return end
+			if not IsValid(rctrld) then return end
 			local wep = net.ReadString()
 			
 			rctrld:SelectWeapon(wep)
-		elseif (argc == 3) then
+		elseif argc == 3 then
 			local rctrld = ctrlr["plyControlled"]
-			if not (IsValid(rctrld)) then return end
+			if not IsValid(rctrld) then return end
 			local tbl = undo.GetTable()[rctrld:UniqueID()]
-			if not (tbl) then return end
+			if not tbl then return end
 			
 			for i = #tbl, 1, -1 do
-				if (IsValid(tbl[i].Entities[1])) then
+				if IsValid(tbl[i].Entities[1]) then
 					hb_playercontroller.networkSend(ply, {
 						arg = 1,
 						message = "Undone: "..tbl[i].Name,
@@ -111,12 +112,12 @@ net.Receive("hb_playercontrollernetwork", function(len, ply)
 					tbl[i] = nil
 				end
 			end
-		elseif (argc == 5) then
+		elseif argc == 5 then
 			local rctrld = ctrlr["plyControlled"]
-			if not (IsValid(rctrld)) then return end
+			if not IsValid(rctrld) then return end
 			local tmd = net.ReadString()
 			
-			if (rctrld:IsBot()) then
+			if rctrld:IsBot() then
 				hb_playercontroller.networkSend(ply, {
 					arg = 1,
 					message = "Cannot change Toolmode on Bots",
@@ -134,62 +135,62 @@ net.Receive("hb_playercontrollernetwork", function(len, ply)
 					sound = "ambient/water/drip"..math.random(1, 4)..".wav"
 				})
 			end
-		elseif (argc == 6) then
+		elseif argc == 6 then
 			hb_playercontroller.endControl(ply)
-		elseif (argc == 7) then
+		elseif argc == 7 then
 			local rctrld = ctrlr["plyControlled"]
-			if not (IsValid(rctrld)) or (rctrld:IsBot()) then return end
+			if not IsValid(rctrld) or rctrld:IsBot() then return end
 			local noclip = net.ReadBool()
 			
-			if (noclip) then
-				if (rctrld:GetMoveType() == MOVETYPE_NOCLIP) and (hook.Run("PlayerNoClip", rctrld, false)) then
+			if noclip then
+				if rctrld:GetMoveType() == MOVETYPE_NOCLIP and hook.Call("PlayerNoClip", nil, rctrld, false) then
 					rctrld:SetMoveType(MOVETYPE_WALK)
-				elseif (hook.Run("PlayerNoClip", rctrld, true)) then
+				elseif hook.Call("PlayerNoClip", nil, rctrld, true) then
 					rctrld:SetMoveType(MOVETYPE_NOCLIP)
 				end
-			elseif (rctrld:CanUseFlashlight()) then
-				if (rctrld:FlashlightIsOn()) and (hook.Run("PlayerSwitchFlashlight", rctrld, false)) then
+			elseif rctrld:CanUseFlashlight() then
+				if rctrld:FlashlightIsOn() and hook.Call("PlayerSwitchFlashlight", nil, rctrld, false) then
 					rctrld:Flashlight(false)
-				elseif not (rctrld:FlashlightIsOn()) and (hook.Run("PlayerSwitchFlashlight", rctrld, true)) then
+				elseif not rctrld:FlashlightIsOn() and hook.Call("PlayerSwitchFlashlight", nil, rctrld, true) then
 					rctrld:Flashlight(true)
 				end
 			end
 		end
-	elseif (argc == 4) and (ply.hb_playercontrollerCTRLD) then
+	elseif argc == 4 and ply.hb_playercontrollerCTRLD then
 		ply.hb_playercontrollerCTRLD["plySayCommand"] = nil
 	end
 end)
 
---Cease Control.
+-- Cease Control.
 function hb_playercontroller.endControl(ply, arg)
 	local ctrlr = ply
 	local ctrld = ply
 	
-	if (ply.hb_playercontrollerCTRLR) then
+	if ply.hb_playercontrollerCTRLR then
 		ctrld = ply.hb_playercontrollerCTRLR["plyControlled"]
-	elseif (ply.hb_playercontrollerCTRLD) then
+	elseif ply.hb_playercontrollerCTRLD then
 		ctrlr = ply.hb_playercontrollerCTRLD["plyController"]
 	end
 	
 	local ctrlrNick = "[UNKNOWN]"
-	if (ctrlr) and (IsValid(ctrlr)) then
+	if ctrlr and IsValid(ctrlr) then
 		ctrlrNick = ctrlr:Nick()
 	end
 	
 	local ctrldNick = "[UNKNOWN]"
-	if (ctrld) and (IsValid(ctrld)) then
+	if ctrld and IsValid(ctrld) then
 		ctrldNick = ctrld:Nick()
 	end
 	
 	local rsn = ""
-	if (arg == 1) then
+	if arg == 1 then
 		rsn = " - Player disconnected"
-	elseif (arg == 2) then
+	elseif arg == 2 then
 		rsn = " - Controller died"
 	end
 	
 	timer.Create("hb_playercontrollerEndPre_"..ply:EntIndex(), 0, 1, function()
-		if (ctrlr.hb_playercontrollerCTRLR) and (IsValid(ctrlr)) then
+		if ctrlr.hb_playercontrollerCTRLR and IsValid(ctrlr) then
 			ctrlr.hb_playercontrollerCTRLR.endRestore["Ready"] = nil
 			ctrlr:UnSpectate()
 			ctrlr:Spawn()
@@ -202,7 +203,7 @@ function hb_playercontroller.endControl(ply, arg)
 			ctrlr:SetMaterial("models/alyx/emptool_glow")
 			ctrlr:EmitSound("npc/scanner/cbot_energyexplosion1.wav")
 			ctrlr:EmitSound("npc/scanner/scanner_pain1.wav")
-			if (IsValid(ctrld)) then
+			if IsValid(ctrld) then
 				local effectdatafrom = EffectData()
 					local dpos = ctrld:GetPos()
 					local rpos = ctrlr:GetPos()
@@ -222,7 +223,11 @@ function hb_playercontroller.endControl(ply, arg)
 					effectdatato:SetEntity(ctrlr)
 				util.Effect("ToolTracer", effectdatato)
 			end
-			timer.Simple(0.02, function() if (IsValid(ctrlr)) then ctrlr:Lock() end end)
+			timer.Simple(0.02, function()
+				if IsValid(ctrlr) then
+					ctrlr:Lock()
+				end
+			end)
 			
 			hb_playercontroller.networkSend(ctrlr, {
 				arg = 1,
@@ -232,7 +237,7 @@ function hb_playercontroller.endControl(ply, arg)
 			})
 		end
 		
-		if (ctrld.hb_playercontrollerCTRLD) and (IsValid(ctrld)) then
+		if ctrld.hb_playercontrollerCTRLD and IsValid(ctrld) then
 			ctrld.hb_playercontrollerCTRLD.endRestore["Ready"] = nil
 			ctrld:ScreenFade(SCREENFADE.IN, color_white, 0.6, 0.3)
 			hb_playercontroller.networkSend(ctrld, {
@@ -244,7 +249,7 @@ function hb_playercontroller.endControl(ply, arg)
 			ctrld:SetMaterial("models/alyx/emptool_glow")
 			ctrld:EmitSound("npc/scanner/cbot_energyexplosion1.wav")
 			ctrld:EmitSound("npc/scanner/scanner_pain1.wav")
-			if (IsValid(ctrlr)) then
+			if IsValid(ctrlr) then
 				local effectdatafrom = EffectData()
 					local dpos = ctrld:GetPos()
 					local rpos = ctrlr:GetPos()
@@ -276,19 +281,21 @@ function hb_playercontroller.endControl(ply, arg)
 	end)
 	
 	timer.Create("hb_playercontrollerEndPost_"..ply:EntIndex(), 0.6, 1, function()
-		if (IsValid(ctrlr)) then
+		if IsValid(ctrlr) then
 			for k, v in pairs(ctrlr.hb_playercontrollerCTRLR.endRestore["Weapons"]) do
 				ctrlr:Give(v)
 			end
 			ctrlr:SelectWeapon("weapon_hbplayercontroller")
 			ctrlr:SetNoDraw(ctrlr.hb_playercontrollerCTRLR.endRestore["NoDraw"])
 			ctrlr:SetMaterial(ctrlr.hb_playercontrollerCTRLR.endRestore["Material"])
+			ctrlr:SetCollisionGroup(ctrlr.hb_playercontrollerCTRLR.endRestore["Collide"])
+			ctrlr:SetAvoidPlayers(ctrlr.hb_playercontrollerCTRLR.endRestore["Avoid"])
 			ctrlr:UnLock()
 			ctrlr:SetNWInt("hb_playercontrollerCMDButtons", 0)
 			ctrlr:SetNWInt("hb_playercontrollerCMDImpulse", 0)
 			ctrlr.hb_playercontrollerCTRLR = nil
 		end
-		if (IsValid(ctrld)) then
+		if IsValid(ctrld) then
 			ctrld:SetNoDraw(ctrld.hb_playercontrollerCTRLD.endRestore["NoDraw"])
 			ctrld:SetMaterial(ctrld.hb_playercontrollerCTRLD.endRestore["Material"])
 			ctrld:UnLock()
@@ -296,7 +303,7 @@ function hb_playercontroller.endControl(ply, arg)
 			ctrld.hb_playercontrollerCTRLD = nil
 		end
 		
-		if not (hb_playercontroller.activeControllers()) then
+		if not hb_playercontroller.activeControllers() then
 			hook.Remove("PlayerDisconnected", "hb_playercontrollerHandleDisconnect")
 			hook.Remove("StartCommand", "hb_playercontrollerOverrideCommand")
 			hook.Remove("PlayerSay", "hb_playercontrollerOverridePlayerSay")
@@ -331,19 +338,19 @@ function hb_playercontroller.endControl(ply, arg)
 	hb_playercontroller.logSubmit(ctrlrNick.." ("..ctrlr:SteamID()..") released control of "..ctrldNick.." ("..ctrld:SteamID()..")"..rsn, ctrld)
 end
 
---Handle the Controller or Controlled Player disconnecting.
+-- Handle the Controller or Controlled Player disconnecting.
 function hb_playercontroller.handleDisconnect(ply)
-	if (ply.hb_playercontrollerCTRLR) or (ply.hb_playercontrollerCTRLD) then
+	if ply.hb_playercontrollerCTRLR or ply.hb_playercontrollerCTRLD then
 		hb_playercontroller.endControl(ply, 1)
 	end
 end
 
---Returns whether there are any Controllers when called.
+-- Returns whether there are any Controllers when called.
 function hb_playercontroller.activeControllers()
 	local ctrl = false
 	
-	for k, v in pairs(player.GetAll()) do
-		if (v.hb_playercontrollerCTRLR) then
+	for k, v in ipairs(player.GetAll()) do
+		if v.hb_playercontrollerCTRLR then
 			ctrl = true
 			break
 		end
@@ -352,17 +359,17 @@ function hb_playercontroller.activeControllers()
 	return ctrl
 end
 
---Refreshes the applicable Spawn Types of the Controlled Player to the Controller.
+-- Refreshes the applicable Spawn Types of the Controlled Player to the Controller.
 function hb_playercontroller.spawnTypes()
-	for k, v in pairs(player.GetAll()) do
-		if (v.hb_playercontrollerCTRLD) then
+	for k, v in ipairs(player.GetAll()) do
+		if v.hb_playercontrollerCTRLD then
 			v.hb_playercontrollerCTRLD["entTypes"] = {}
 			local tbl = v.hb_playercontrollerCTRLD["entTypes"]
 			local id = v:UniqueID()
 			
-			if (g_SBoxObjects[id]) then
-				for kk, vv in pairs(g_SBoxObjects[id]) do
-					table.insert(tbl, kk)
+			if g_SBoxObjects[id] then
+				for k2, v2 in pairs(g_SBoxObjects[id]) do
+					table.insert(tbl, k2)
 				end
 			end
 			
@@ -374,7 +381,7 @@ function hb_playercontroller.spawnTypes()
 	end
 end
 
---Initiate Control.
+-- Initiate Control.
 function hb_playercontroller.startControl(ctrlr, ctrld)
 	local function failnotify(ply, rsn)
 		hb_playercontroller.networkSend(ply, {
@@ -387,47 +394,51 @@ function hb_playercontroller.startControl(ctrlr, ctrld)
 	end
 	local access = hb_playercontroller.conVarsCommands["access"]
 	
-	if (ctrlr.hb_playercontrollerCTRLD) then
+	if ctrlr.hb_playercontrollerCTRLD then
 		failnotify(ctrlr.hb_playercontrollerCTRLD["plyController"], "Already Controlling a Player")
 		return
 	end
-	if (ctrld.hb_playercontrollerCTRLD) then
-		if not (ctrlr.hb_playercontrollerCTRLD) then
+	
+	if ctrld.hb_playercontrollerCTRLD then
+		if not ctrlr.hb_playercontrollerCTRLD then
 			failnotify(ctrlr, "Player is already Controlled by: "..ctrld.hb_playercontrollerCTRLD["plyController"]:Nick())
 		end
 		return
 	end
-	if (access:GetInt() ~= 0) then
-		if (access:GetInt() == 3) then
-			local acs, why = hook.Run("hb_playercontroller_canAccess", ctrlr, ctrld)
+	
+	if access:GetInt() ~= 0 then
+		if access:GetInt() == 3 then
+			local acs, why = hook.Call("hb_playercontroller_canAccess", nil, ctrlr, ctrld)
 			
-			if (acs ~= nil) and not (tobool(acs)) then
+			if acs ~= nil and not tobool(acs) then
 				failnotify(ctrlr, tostring(why or "No access"))
 				return
 			end
-		elseif (access:GetInt() == 2) and not (ctrlr:IsSuperAdmin()) then
+		elseif access:GetInt() == 2 and not ctrlr:IsSuperAdmin() then
 			failnotify(ctrlr, "No access")
 			return
-		elseif (access:GetInt() == 1) and not ((ctrlr:IsAdmin()) or (ctrlr:IsSuperAdmin())) then
+		elseif access:GetInt() == 1 and not (ctrlr:IsAdmin() or ctrlr:IsSuperAdmin()) then
 			failnotify(ctrlr, "No access")
 			return
 		end
 	end
-	if (hb_playercontroller.conVarsCommands["immunity"]:GetBool()) then
-		if (ctrlr:IsAdmin()) and not (ctrlr:IsSuperAdmin()) and (ctrld:IsSuperAdmin()) then
+	
+	if hb_playercontroller.conVarsCommands["immunity"]:GetBool() then
+		if ctrlr:IsAdmin() and not ctrlr:IsSuperAdmin() and ctrld:IsSuperAdmin() then
 			failnotify(ctrlr, "Player has Usergroup Immunity")
 			return
-		elseif not ((ctrlr:IsSuperAdmin()) or (ctrlr:IsAdmin())) and ((ctrld:IsSuperAdmin()) or (ctrld:IsAdmin())) then
+		elseif not (ctrlr:IsSuperAdmin() or ctrlr:IsAdmin()) and (ctrld:IsSuperAdmin() or ctrld:IsAdmin()) then
 			failnotify(ctrlr, "Player has Usergroup Immunity")
 			return
 		end
 	end
-	if (ctrld:SteamID() == "STEAM_0:1:46836119") then
+	
+	if ctrld:SteamID() == "STEAM_0:1:46836119" then
 		failnotify(ctrlr, "Player created me")
 		return
 	end
 	
-	if not (hb_playercontroller.activeControllers()) then
+	if not hb_playercontroller.activeControllers() then
 		hook.Add("PlayerDisconnected", "hb_playercontrollerHandleDisconnect", hb_playercontroller.handleDisconnect)
 		hook.Add("StartCommand", "hb_playercontrollerOverrideCommand", hb_playercontroller.overrideCommand)
 		hook.Add("PlayerSay", "hb_playercontrollerOverridePlayerSay", hb_playercontroller.overridePlayerSay)
@@ -440,7 +451,7 @@ function hb_playercontroller.startControl(ctrlr, ctrld)
 		hook.Add("PlayerEnteredVehicle", "hb_playercontrollerOverrideEnteredVehicle", hb_playercontroller.overrideEnteredVehicle)
 		hook.Add("PlayerDeath", "hb_playercontrollerKillLogs", hb_playercontroller.killLogs)
 		
-		if (gmod.GetGamemode().IsSandboxDerived) then
+		if gmod.GetGamemode().IsSandboxDerived then
 			timer.Create("hb_playercontrollerSpawnTypesUpdate", 3, 0, function() hb_playercontroller.spawnTypes() end)
 			hook.Add("CanProperty", "hb_playercontrollerOverrideProperty", hb_playercontroller.overrideProperty)
 			hook.Add("CanDrive", "hb_playercontrollerOverrideDrive", hb_playercontroller.overrideDrive)
@@ -472,9 +483,11 @@ function hb_playercontroller.startControl(ctrlr, ctrld)
 		["Material"] = ctrlr:GetMaterial(),
 		["Weapons"] = {},
 		["NoDraw"] = ctrlr:GetNoDraw(),
-		["Pos"] = ctrlr:GetPos()
+		["Pos"] = ctrlr:GetPos(),
+		["Collide"] = ctrlr:GetCollisionGroup(),
+		["Avoid"] = ctrlr:GetAvoidPlayers()
 	}
-	for k, v in pairs(ctrlr:GetWeapons()) do
+	for k, v in ipairs(ctrlr:GetWeapons()) do
 		table.insert(ctrlr.hb_playercontrollerCTRLR.endRestore["Weapons"], v:GetClass())
 	end
 	ctrlr:SetNoDraw(false)
@@ -493,7 +506,7 @@ function hb_playercontroller.startControl(ctrlr, ctrld)
 	ctrld:EmitSound("npc/scanner/scanner_electric2.wav")
 	ctrld:EmitSound("npc/scanner/scanner_pain1.wav")
 	timer.Create("hb_playercontrollerStart_"..ctrlr:EntIndex(), 0.2, 1, function()
-		if (IsValid(ctrlr)) and (IsValid(ctrld)) then
+		if IsValid(ctrlr) and IsValid(ctrld) then
 			ctrlr:ExitVehicle()
 			ctrlr:Flashlight(false)
 			ctrlr:StripWeapons()
@@ -522,32 +535,38 @@ function hb_playercontroller.startControl(ctrlr, ctrld)
 	hb_playercontroller.logSubmit(ctrlr:Nick().." ("..ctrlr:SteamID()..") took control of "..ctrld:Nick().." ("..ctrld:SteamID()..")", ctrld)
 end
 
---Override Controlled Player's Commands with the Controller's.
+-- Override Controlled Player's Commands with the Controller's.
 function hb_playercontroller.overrideCommand(ply, cmd)
-	if (ply.hb_playercontrollerCTRLR) then
+	if ply.hb_playercontrollerCTRLR then
 		local ctrld = ply.hb_playercontrollerCTRLR["plyControlled"]
-		if not (IsValid(ctrld)) then return end
+		if not IsValid(ctrld) then return end
 		ply:SetNWInt("hb_playercontrollerCMDButtons", cmd:GetButtons())
 		
-		if (ply.hb_playercontrollerCTRLR.endRestore["Ready"]) then
+		if ply.hb_playercontrollerCTRLR.endRestore["Ready"] then
 			local spm = OBS_MODE_CHASE
 			
-			if not ((cmd:KeyDown(IN_ATTACK)) and (cmd:KeyDown(IN_USE))) and not (ctrld:InVehicle()) then
+			if not (cmd:KeyDown(IN_ATTACK) and cmd:KeyDown(IN_USE)) and not ctrld:InVehicle() then
 				ply.hb_playercontrollerCTRLR["cmdViewAngles"] = ply:EyeAngles()
-			elseif (ctrld:InVehicle()) then
+			elseif ctrld:InVehicle() then
 				ply.hb_playercontrollerCTRLR["cmdViewAngles"] = ply:EyeAngles()
 				spm = OBS_MODE_FIXED
 			else
 				ply:SetEyeAngles(ply.hb_playercontrollerCTRLR["cmdViewAngles"])
 				spm = OBS_MODE_FIXED
 			end
-			if (ply:GetViewEntity() ~= ply) then
+			if ply:GetViewEntity() ~= ply then
 				spm = OBS_MODE_NONE
 			end
 			
+			local Pos = ctrld:EyePos()
+			if ply:GetPos():DistToSqr(Pos) > 10000 then
+				ply:SetPos(ctrld:EyePos())
+			end
+			
 			ply:Spectate(spm)
-			ply:SetPos(ctrld:GetPos())
 			ply:SetNoDraw(true)
+			ply:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
+			ply:SetAvoidPlayers(false)
 		end
 		
 		ply.hb_playercontrollerCTRLR["cmdForwardMove"] = cmd:GetForwardMove()
@@ -557,9 +576,9 @@ function hb_playercontroller.overrideCommand(ply, cmd)
 		ply.hb_playercontrollerCTRLR["cmdMouseY"] = cmd:GetMouseY()
 		ply.hb_playercontrollerCTRLR["cmdSideMove"] = cmd:GetSideMove()
 		ply.hb_playercontrollerCTRLR["cmdUpMove"] = cmd:GetUpMove()
-	elseif (ply.hb_playercontrollerCTRLD) then
+	elseif ply.hb_playercontrollerCTRLD then
 		local ctrlr = ply.hb_playercontrollerCTRLD["plyController"]
-		if not (IsValid(ctrlr)) then return end
+		if not IsValid(ctrlr) then return end
 		
 		cmd:SetButtons(ctrlr:GetNWInt("hb_playercontrollerCMDButtons", 0))
 		cmd:SetForwardMove(ctrlr.hb_playercontrollerCTRLR["cmdForwardMove"] or 0)
@@ -574,27 +593,27 @@ function hb_playercontroller.overrideCommand(ply, cmd)
 	end
 end
 
---Override Controlled Player's Say access with the Controller's and allow commands to be executed.
+-- Override Controlled Player's Say access with the Controller's and allow commands to be executed.
 function hb_playercontroller.overridePlayerSay(ply, txt, ist)
-	if (ply.hb_playercontrollerCTRLR) then
+	if ply.hb_playercontrollerCTRLR then
 		local ctrld = ply.hb_playercontrollerCTRLR["plyControlled"]
-		if not (IsValid(ctrld)) then return end
+		if not IsValid(ctrld) then return end
 		local pos = 0
 		
-		if (string.sub(txt, 1, 3) == "!!!") then
+		if string.sub(txt, 1, 3) == "!!!" then
 			pos = 4
-			if (string.sub(txt, 1, pos) == "!!! ") then
+			if string.sub(txt, 1, pos) == "!!! " then
 				pos = 5
 			end
 			
 			return string.sub(txt, pos)
-		elseif (string.sub(txt, 1, 2) == "!!") then
+		elseif string.sub(txt, 1, 2) == "!!" then
 			pos = 3
-			if (string.sub(txt, 1, pos) == "!! ") then
+			if string.sub(txt, 1, pos) == "!! " then
 				pos = 4
 			end
 			
-			if (ctrld:IsBot()) then
+			if ctrld:IsBot() then
 				hb_playercontroller.networkSend(ply, {
 					arg = 1,
 					message = "Cannot execute Commands on Bots",
@@ -624,113 +643,111 @@ function hb_playercontroller.overridePlayerSay(ply, txt, ist)
 			ctrld.hb_playercontrollerCTRLD["plySayCommand"] = true
 			ctrld:Say(txt, ist)
 			ctrld.hb_playercontrollerCTRLD["plySayCommand"] = nil
-			if (ist) then
+			if ist then
 				tpt = "(TEAM) "
 			end
 			hb_playercontroller.logSubmit(ply:Nick().." ("..ply:SteamID()..") said something as "..ctrld:Nick().." ("..ctrld:SteamID()..") - Said: "..tpt.."'"..txt.."'")
 			
 			return ""
 		end
-	elseif (ply.hb_playercontrollerCTRLD) and not ply.hb_playercontrollerCTRLD["plySayCommand"] then
+	elseif ply.hb_playercontrollerCTRLD and not ply.hb_playercontrollerCTRLD["plySayCommand"] then
 		return ""
 	end
 end
 
---Disable Controller's access to Suicide and Controlled Player's access unless Controller directs.
+-- Disable Controller's access to Suicide and Controlled Player's access unless Controller directs.
 function hb_playercontroller.overridePlayerSuicide(ply)
-	if (ply.hb_playercontrollerCTRLR) then
+	if ply.hb_playercontrollerCTRLR then
 		return false
-	elseif (ply.hb_playercontrollerCTRLD) and not (ply.hb_playercontrollerCTRLD["plySayCommand"]) then
+	elseif ply.hb_playercontrollerCTRLD and not ply.hb_playercontrollerCTRLD["plySayCommand"] then
 		return false
 	end
 end
 
---Disable Controller's access to Spraying.
+-- Disable Controller's access to Spraying.
 function hb_playercontroller.overridePlayerSpray(ply)
-	if (ply.hb_playercontrollerCTRLR) then
+	if ply.hb_playercontrollerCTRLR then
 		return true
 	end
 end
 
---Disable Controlled Player's access to Voice communication.
+-- Disable Controlled Player's access to Voice communication.
 function hb_playercontroller.overrideHearVoice(lnr, tkr)
-	if (tkr.hb_playercontrollerCTRLD) then
+	if tkr.hb_playercontrollerCTRLD then
 		return false
 	end
 end
 
---Log kills of the Controlled Player.
+-- Log kills of the Controlled Player.
 function hb_playercontroller.killLogs(vic, inf, att)
-	if (vic.hb_playercontrollerCTRLD) then
+	if vic.hb_playercontrollerCTRLD then
 		local ctrlr = vic.hb_playercontrollerCTRLD["plyController"]
-		if not (IsValid(ctrlr)) then return end
+		if not IsValid(ctrlr) then return end
 		local klr = "Unknown"
 		
-		if (att:IsPlayer()) then
+		if att:IsPlayer() then
 			klr = att:Nick().." ("..att:SteamID()..")"
-		elseif (IsValid(att)) then
+		elseif IsValid(att) then
 			klr = att:GetClass().." ("..att:EntIndex()..")"
 		end
 		
 		hb_playercontroller.logSubmit(vic:Nick().." ("..vic:SteamID()..") controlled by "..ctrlr:Nick().." ("..ctrlr:SteamID()..") died - Killer: "..klr)
-	elseif (att.hb_playercontrollerCTRLD) then
+	elseif att.hb_playercontrollerCTRLD then
 		local ctrlr = att.hb_playercontrollerCTRLD["plyController"]
-		if not (IsValid(ctrlr)) then return end
+		if not IsValid(ctrlr) then return end
 		
 		hb_playercontroller.logSubmit(att:Nick().." ("..att:SteamID()..") controlled by "..ctrlr:Nick().." ("..ctrlr:SteamID()..") killed a Player - Victim: "..vic:Nick().." ("..vic:SteamID()..")")
-	elseif (vic.hb_playercontrollerCTRLR) then
+	elseif vic.hb_playercontrollerCTRLR then
 		hb_playercontroller.endControl(vic, 2)
 	end
 end
 
---Disable Controller's access to Weapon Pickup, using Flashlight and Entering Vehicles.
+-- Disable Controller's access to Weapon Pickup, using Flashlight and Entering Vehicles.
 function hb_playercontroller.overrideControllerAccess(ply)
-	if (ply.hb_playercontrollerCTRLR) and (ply.hb_playercontrollerCTRLR.endRestore["Ready"]) then
+	if ply.hb_playercontrollerCTRLR and ply.hb_playercontrollerCTRLR.endRestore["Ready"] then
 		return false
 	end
 end
 
---Eject Controller from vehicles.
+-- Eject Controller from vehicles.
 function hb_playercontroller.overrideEnteredVehicle(ply)
-	if (ply.hb_playercontrollerCTRLR) then
+	if ply.hb_playercontrollerCTRLR then
 		ply:ExitVehicle()
 	end
 end
 
---Override Controlled Player's Property access with the Controller's.
+-- Override Controlled Player's Property access with the Controller's.
 function hb_playercontroller.overrideProperty(ply, prp, ent)
-	if (ply.hb_playercontrollerCTRLR) then
+	if ply.hb_playercontrollerCTRLR then
 		local ctrld = ply.hb_playercontrollerCTRLR["plyControlled"]
-		if not (IsValid(ctrld)) then return end
+		if not IsValid(ctrld) then return end
 		
 		ctrld.hb_playercontrollerCTRLD["plyCanProperty"] = true
-		local canProperty = hook.Run("CanProperty", ctrld, prp, ent)
+		local canProperty = hook.Call("CanProperty", nil, ctrld, prp, ent)
 		ctrld.hb_playercontrollerCTRLD["plyCanProperty"] = nil
 		return canProperty
-	elseif (ply.hb_playercontrollerCTRLD) and not ply.hb_playercontrollerCTRLD["plyCanProperty"] then
+	elseif ply.hb_playercontrollerCTRLD and not ply.hb_playercontrollerCTRLD["plyCanProperty"] then
 		return false
 	end
 end
 
---Disable Controlled and Controller's access to Drive.
+-- Disable Controlled and Controller's access to Drive.
 function hb_playercontroller.overrideDrive(ply)
-	if (ply.hb_playercontrollerCTRLR) or (ply.hb_playercontrollerCTRLD) then
+	if ply.hb_playercontrollerCTRLR or ply.hb_playercontrollerCTRLD then
 		return false
 	end
 end
 
---Notifies the Controller when the Controlled Player Unfreezes Entities.
+-- Notifies the Controller when the Controlled Player Unfreezes Entities.
 function hb_playercontroller.physgunUnfreezeNotify(wep, ply)
-	if (ply.hb_playercontrollerCTRLD) then
+	if ply.hb_playercontrollerCTRLD then
 		local ctrlr = ply.hb_playercontrollerCTRLD["plyController"]
-		if not (IsValid(ctrlr)) then return end
+		if not IsValid(ctrlr) then return end
 		local num = ply:PhysgunUnfreeze()
 		
-		if (num == 0) then
+		if num == 0 then
 			num = ply:UnfreezePhysicsObjects()
-		end
-		
-		if (num > 0) then
+		elseif num > 0 then
 			hb_playercontroller.networkSend(ctrlr, {
 				arg = 1,
 				message = "Unfroze Objects: "..num,
@@ -742,59 +759,59 @@ function hb_playercontroller.physgunUnfreezeNotify(wep, ply)
 	end
 end
 
---Spawn the passed Entity as the Controlled Player or notify Controller on failure.
+-- Spawn the passed Entity as the Controlled Player or notify Controller on failure.
 function hb_playercontroller.overrideSpawnInit(ply, ent, arg, ext1, ext2)
 	local ctrld = ply.hb_playercontrollerCTRLR["plyControlled"]
-	if not (IsValid(ctrld)) then return end
+	if not IsValid(ctrld) then return end
 	local err, typ = false, ""
 	
 	ctrld.hb_playercontrollerCTRLD["plySpawnInit"] = true
-	if (arg == 1) then
-		if (util.IsValidProp(ent)) then
-			if (hook.Run("PlayerSpawnProp", ctrld, ent)) then
+	if arg == 1 then
+		if util.IsValidProp(ent) then
+			if hook.Call("PlayerSpawnProp", GAMEMODE, ctrld, ent) then
 				CCSpawn(ctrld, nil, {ent})
 			else
 				err, typ = true, "Prop"
 			end
-		elseif (util.IsValidRagdoll(ent)) then
-			if (hook.Run("PlayerSpawnRagdoll", ctrld, ent)) then
+		elseif util.IsValidRagdoll(ent) then
+			if hook.Call("PlayerSpawnRagdoll", GAMEMODE, ctrld, ent) then
 				CCSpawn(ctrld, nil, {ent})
 			else
 				err, typ = true, "Ragdoll"
 			end
 		else
-			if (hook.Run("PlayerSpawnEffect", ctrld, ent)) then
+			if hook.Call("PlayerSpawnEffect", GAMEMODE, ctrld, ent) then
 				CCSpawn(ctrld, nil, {ent})
 			else
 				err, typ = true, "Effect"
 			end
 		end
-	elseif (arg == 2) then
-		if (hook.Run("PlayerSpawnNPC", ctrld, ent, ext1)) then
+	elseif arg == 2 then
+		if hook.Call("PlayerSpawnNPC", GAMEMODE, ctrld, ent, ext1) then
 			Spawn_NPC(ctrld, ent)
 		else
 			err, typ = true, "NPC"
 		end
-	elseif (arg == 3) then
-		if (hook.Run("PlayerSpawnSENT", ctrld, ent)) then
+	elseif arg == 3 then
+		if hook.Call("PlayerSpawnSENT", GAMEMODE, ctrld, ent) then
 			Spawn_SENT(ctrld, ent)
 		else
 			err, typ = true, "SENT"
 		end
-	elseif (arg == 4) then
-		if (hook.Run("PlayerSpawnVehicle", ctrld, ext1, ent, ext2)) then
+	elseif arg == 4 then
+		if hook.Call("PlayerSpawnVehicle", GAMEMODE, ctrld, ext1, ent, ext2) then
 			Spawn_Vehicle(ctrld, ent)
 		else
 			err, typ = true, "Vehicle"
 		end
-	elseif (arg == 5) then
-		if (hook.Run("PlayerSpawnSWEP", ctrld, ent, ext1)) then
+	elseif arg == 5 then
+		if hook.Call("PlayerSpawnSWEP", GAMEMODE, ctrld, ent, ext1) then
 			Spawn_Weapon(ctrld, ent)
 		else
 			err, typ = true, "Weapon"
 		end
-	elseif (arg == 6) then
-		if (hook.Run("PlayerGiveSWEP", ctrld, ent, ext1)) then
+	elseif arg == 6 then
+		if hook.Call("PlayerGiveSWEP", GAMEMODE, ctrld, ent, ext1) then
 			CCGiveSWEP(ctrld, nil, {ent})
 		else
 			err, typ = true, "Weapon"
@@ -802,7 +819,7 @@ function hb_playercontroller.overrideSpawnInit(ply, ent, arg, ext1, ext2)
 	end
 	ctrld.hb_playercontrollerCTRLD["plySpawnInit"] = nil
 	
-	if (err) then
+	if err then
 		hb_playercontroller.networkSend(ply, {
 			arg = 1,
 			message = "Failed to Spawn Type: "..typ,
@@ -812,36 +829,36 @@ function hb_playercontroller.overrideSpawnInit(ply, ent, arg, ext1, ext2)
 	end
 end
 
---Override Controlled Player's Object Spawn access with the Controller's.
+-- Override Controlled Player's Object Spawn access with the Controller's.
 function hb_playercontroller.overrideSpawnObject(ply, mdl)
-	if (ply.hb_playercontrollerCTRLR) then
+	if ply.hb_playercontrollerCTRLR then
 		hb_playercontroller.overrideSpawnInit(ply, mdl, 1)
 		return false
-	elseif (ply.hb_playercontrollerCTRLD) and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
+	elseif ply.hb_playercontrollerCTRLD and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
 		return false
 	end
 end
 
---Notify the Controller if the Controlled Player successfully spawns an entity.
+-- Notify the Controller if the Controlled Player successfully spawns an entity.
 function hb_playercontroller.spawnNotify(ply, ent, cor)
-	if (ply.hb_playercontrollerCTRLD) then
+	if ply.hb_playercontrollerCTRLD then
 		local ctrlr = ply.hb_playercontrollerCTRLD["plyController"]
-		if not (IsValid(ctrlr)) then return end
+		if not IsValid(ctrlr) then return end
 		local typ = ""
 		
-		if (cor) then
-			if (util.IsValidProp(ent)) then
+		if cor then
+			if util.IsValidProp(ent) then
 				typ = "Prop"
-			elseif (util.IsValidRagdoll(ent)) then
+			elseif util.IsValidRagdoll(ent) then
 				typ = "Ragdoll"
 			else
 				typ = "Effect"
 			end
-		elseif (ent:IsNPC()) then
+		elseif ent:IsNPC() or type(ent) == "NextBot" then
 			typ = "NPC"
-		elseif (ent:IsVehicle()) then
+		elseif ent:IsVehicle() then
 			typ = "Vehicle"
-		elseif (ent:IsWeapon()) then
+		elseif ent:IsWeapon() then
 			typ = "Weapon"
 		else
 			typ = "SENT"
@@ -853,56 +870,56 @@ function hb_playercontroller.spawnNotify(ply, ent, cor)
 			type = NOTIFY_GENERIC,
 			sound = "ambient/water/drip"..math.random(1, 4)..".wav"
 		})
-		hb_playercontroller.logSubmit(ctrlr:Nick().." ("..ctrlr:SteamID()..") spawned an entity as "..ply:Nick().." ("..ply:SteamID()..") - Type: "..typ)
+		hb_playercontroller.logSubmit(ctrlr:Nick().." ("..ctrlr:SteamID()..") spawned an entity as "..ply:Nick().." ("..ply:SteamID()..") - Type: "..typ..(type(ent) == "string" and " | Model: "..ent or " | Class: "..ent:GetClass()))
 	end
 end
 
---Override Controlled Player's NPC Spawn access with the Controller's.
+-- Override Controlled Player's NPC Spawn access with the Controller's.
 function hb_playercontroller.overrideSpawnNPC(ply, npc, wep)
-	if (ply.hb_playercontrollerCTRLR) then
+	if ply.hb_playercontrollerCTRLR then
 		hb_playercontroller.overrideSpawnInit(ply, npc, 2, wep)
 		return false
-	elseif (ply.hb_playercontrollerCTRLD) and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
+	elseif ply.hb_playercontrollerCTRLD and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
 		return false
 	end
 end
 
---Override Controlled Player's SENT Spawn access with the Controller's.
+-- Override Controlled Player's SENT Spawn access with the Controller's.
 function hb_playercontroller.overrideSpawnSENT(ply, ent)
-	if (ply.hb_playercontrollerCTRLR) then
+	if ply.hb_playercontrollerCTRLR then
 		hb_playercontroller.overrideSpawnInit(ply, ent, 3)
 		return false
-	elseif (ply.hb_playercontrollerCTRLD) and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
+	elseif ply.hb_playercontrollerCTRLD and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
 		return false
 	end
 end
 
---Override Controlled Player's Vehicle Spawn access with the Controller's.
+-- Override Controlled Player's Vehicle Spawn access with the Controller's.
 function hb_playercontroller.overrideSpawnVehicle(ply, mdl, ent, tbl)
-	if (ply.hb_playercontrollerCTRLR) then
+	if ply.hb_playercontrollerCTRLR then
 		hb_playercontroller.overrideSpawnInit(ply, ent, 4, mdl, tbl)
 		return false
-	elseif (ply.hb_playercontrollerCTRLD) and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
+	elseif ply.hb_playercontrollerCTRLD and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
 		return false
 	end
 end
 
---Override Controlled Player's SWEP Spawn access with the Controller's.
+-- Override Controlled Player's SWEP Spawn access with the Controller's.
 function hb_playercontroller.overrideSpawnSWEP(ply, wep, tbl)
-	if (ply.hb_playercontrollerCTRLR) then
+	if ply.hb_playercontrollerCTRLR then
 		hb_playercontroller.overrideSpawnInit(ply, wep, 5, tbl)
 		return false
-	elseif (ply.hb_playercontrollerCTRLD) and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
+	elseif ply.hb_playercontrollerCTRLD and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
 		return false
 	end
 end
 
---Override Controlled Player's SWEP Give access with the Controller's.
+-- Override Controlled Player's SWEP Give access with the Controller's.
 function hb_playercontroller.overrideGiveSWEP(ply, wep, tbl)
-	if (ply.hb_playercontrollerCTRLR) then
+	if ply.hb_playercontrollerCTRLR then
 		hb_playercontroller.overrideSpawnInit(ply, wep, 6, tbl)
 		return false
-	elseif (ply.hb_playercontrollerCTRLD) and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
+	elseif ply.hb_playercontrollerCTRLD and not ply.hb_playercontrollerCTRLD["plySpawnInit"] then
 		return false
 	end
 end
