@@ -242,6 +242,7 @@ end
 
 -- Disables drawing of the Controlled Player when in Firstperson.
 function hb_playercontroller.overridePlayerDraw(ctrld)
+	local ply = LocalPlayer()
 	if not IsValid(ctrld) or ctrld ~= ply.hb_playercontroller["plyCTRLENT"] then return end
 	
 	if ply.hb_playercontroller.plyViewRestore then
