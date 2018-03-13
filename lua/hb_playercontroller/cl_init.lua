@@ -302,6 +302,11 @@ function hb_playercontroller.controllerHUD()
 	ply.hb_playercontroller.plyMenu.menuHide:SetSize(ply.hb_playercontroller.plyMenu:GetWide() - 5, 100)
 	ply.hb_playercontroller.plyMenu.menuHide:SetLabel("[CLICK HERE OR PRESS F7 TO SHOW/HIDE MENU]")
 	ply.hb_playercontroller.plyMenu.menuHide:SetExpanded(false)
+	
+	ply.hb_playercontroller.plyMenu.menuHide.bindWalk = input.LookupBinding("+walk", true) or "\"+walk\""
+	ply.hb_playercontroller.plyMenu.menuHide.bindInvNext = input.LookupBinding("invnext", true) or "\"invnext\""
+	ply.hb_playercontroller.plyMenu.menuHide.bindInvPrev = input.LookupBinding("invprev", true) or "\"invprev\""
+	ply.hb_playercontroller.plyMenu.menuHide.bindUndo = input.LookupBinding("undo", true) or input.LookupBinding("gmod_undo", true) or "\"gmod_undo\""
 	ply.hb_playercontroller.plyMenu.menuHide:SetTooltip(
 		"Player Controller Help\n\n"..
 		"- -GENERAL USAGE- -\n"..
@@ -310,14 +315,15 @@ function hb_playercontroller.controllerHUD()
 		"[Clean Up Type]: Left-click an entry under Spawn Management to clean up everything of the selected type owned by your Victim (Sandbox Derived Only)\n"..
 		"[Clean Up Everything]: Right-click an entry under Spawn Management to clean up everything owned by your Victim (Sandbox Derived Only)\n\n"..
 		"- -BINDS USAGE- -\n"..
-		"["..string.upper(input.LookupBinding("+walk", true).." + "..input.LookupBinding("invprev", true).."/"..input.LookupBinding("invnext", true) or "(N/A)").."]: Zoom your camera view in/out\n"..
-		"["..string.upper(input.LookupBinding("invprev", true).."/"..input.LookupBinding("invnext", true) or "(N/A)").."]: Cycles through your Victim's weapons for use\n"..
-		"["..string.upper(input.LookupBinding("undo", true) or "(N/A)").."]: Undo the last thing done by your Victim\n\n"..
+		"["..string.upper(ply.hb_playercontroller.plyMenu.menuHide.bindWalk.." + "..ply.hb_playercontroller.plyMenu.menuHide.bindInvPrev.."/"..ply.hb_playercontroller.plyMenu.menuHide.bindInvNext).."]: Zoom your camera view in/out\n"..
+		"["..string.upper(ply.hb_playercontroller.plyMenu.menuHide.bindInvPrev.."/"..ply.hb_playercontroller.plyMenu.menuHide.bindInvNext).."]: Cycles through your Victim's weapons for use\n"..
+		"["..string.upper(ply.hb_playercontroller.plyMenu.menuHide.bindUndo).."]: Undo the last thing done by your Victim\n\n"..
 		"- -CHAT USAGE- -\n"..
 		"[Message]: Sending chat messages as normal will instead be sent as your Victim\n"..
 		"[!! Message]: Appending '!!' before a message will execute it as a Console Command on your Victim\n"..
 		"[!!! Message]: Appending '!!!' before a message will send the message as yourself, not your Victim"
 	)
+	
 	ply.hb_playercontroller.plyMenu.menuHide.Paint = function(self, w, h)
 		draw.RoundedBoxEx(6, 0, 0, w, h, Color(0, 0, 0, 255), false, false, false, true)
 		draw.RoundedBoxEx(6, 0, 2, w, 16, Color(255, 0, 0, 255), false, true, false, true)
